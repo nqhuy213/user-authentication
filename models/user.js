@@ -1,5 +1,7 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
+const crypto = require('crypto')
+const Token = require('./token')
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -18,24 +20,46 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    isActive:{
+    isVerified:{
         type: Boolean,
         default:false
     },
-    createdAt:{
-        type:Date,
-        default: Date()
-    },
     verifyString: String
     },
+    {timestamps:true},
     {
         versionKey: false
     }
 )
 
-module.exports = mongoose.model('users', userSchema)
-module.exports.hashPassword = async (password) => {
-    const salt = await bcrypt.genSalt()
-    const hashedPassword = await bcrypt.hash(password, salt)
-    return hashedPassword
+
+userSchema.pre('save', function(next) {
+    const user = this;
+
+    if (!user.isModified('password')) return next();
+
+    bcrypt.genSalt(10, function(err, salt) {
+        if (err) return next(err);
+
+        bcrypt.hash(user.password, salt, function(err, hash) {
+            if (err) return next(err);
+
+            user.password = hash;
+            next();
+        });
+    });
+})
+
+userSchema.methods.comparePassword = function(password){
+    return bcrypt.compareSync(password,this.password)
 }
+
+userSchema.methods.generateVerificationToken = function(){
+    let payload = {
+        userId: this._id,
+        token: crypto.randomBytes(20).toString('hex')
+    }
+    return new Token(payload)
+}
+
+module.exports = mongoose.model('users', userSchema)

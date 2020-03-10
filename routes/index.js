@@ -2,8 +2,7 @@ const express = require('express')
 const router = express.Router()
 
 router.get('/',checkAuthenticated, (req, res )=> {
-    console.log(req.user)
-    res.render('index', {user: req.user})
+  res.render('index', {user: req.user})
 })
 
 function checkAuthenticated(req,res,next){
